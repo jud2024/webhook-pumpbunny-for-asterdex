@@ -11,7 +11,7 @@ import ta  # biblioteca pra indicadores técnicos
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 
 # CONFIG
-WS_BASE = "wss://fstream.asterdex.com"
+WS_BASE = "wss://fstream.asterdex.com/stream?streams=btcusdt@aggTrade"
 SYMBOL = "btcusdt"
 CANDLE_TICKS = 10
 SUBSCRIBE_MSG = {"method": "SUBSCRIBE", "params": [f"{SYMBOL}@aggTrade"], "id": 1}
