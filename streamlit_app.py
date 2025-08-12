@@ -1,17 +1,20 @@
 # app.py
 import streamlit as st
-import threading, time, json
+import threading
+import time
+import json
 from websocket import create_connection, WebSocketConnectionClosedException
 import pandas as pd
 import plotly.graph_objects as go
 from collections import deque
 import ta  # biblioteca pra indicadores técnicos
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 
 # CONFIG
 WS_BASE = "wss://fstream.asterdex.com"
 SYMBOL = "btcusdt"
 CANDLE_TICKS = 10
-SUBSCRIBE_MSG = {"method":"SUBSCRIBE", "params":[f"{SYMBOL}@aggTrade"], "id":1}
+SUBSCRIBE_MSG = {"method": "SUBSCRIBE", "params": [f"{SYMBOL}@aggTrade"], "id": 1}
 
 trade_buffer = deque(maxlen=1000)
 candles = []
@@ -36,7 +39,7 @@ st.markdown("""
 
 st.title("📈 Candlestick OHLC + RSI — T10 (Aster)")
 placeholder_chart = st.empty()
-col1, col2 = st.columns([3,1])
+col1, col2 = st.columns([3, 1])
 
 with col2:
     st.subheader("Status")
@@ -51,7 +54,7 @@ def agg_trades_to_candles():
         n_blocks = len(trades) // CANDLE_TICKS
         new_candles = []
         for b in range(n_blocks):
-            block = trades[b*CANDLE_TICKS:(b+1)*CANDLE_TICKS]
+            block = trades[b * CANDLE_TICKS:(b + 1) * CANDLE_TICKS]
             prices = [float(t["p"]) for t in block]
             qtys = [float(t["q"]) for t in block]
             candle = {
@@ -88,12 +91,16 @@ def ws_worker():
                         trade_buffer.append(trade)
         except (WebSocketConnectionClosedException, ConnectionRefusedError, OSError) as e:
             ws_status.text(f"WS desconectado — reconecta em {backoff}s (erro: {e})")
-            time.sleep(backoff); backoff = min(30, backoff * 2)
+            time.sleep(backoff)
+            backoff = min(30, backoff * 2)
         except Exception as ex:
             ws_status.text(f"Erro WS: {ex}")
             time.sleep(3)
 
-threading.Thread(target=ws_worker, daemon=True).start()
+# Criação da thread com contexto de execução
+thread = threading.Thread(target=ws_worker, daemon=True)
+add_script_run_ctx(thread)
+thread.start()
 
 try:
     while True:
@@ -107,14 +114,14 @@ try:
                 x=df["t_open"], open=df["open"], high=df["high"],
                 low=df["low"], close=df["close"], name="Candlestick"
             ))
-            fig.update_layout(xaxis_rangeslider_visible=False, margin=dict(l=10,r=10,t=30,b=10),
+            fig.update_layout(xaxis_rangeslider_visible=False, margin=dict(l=10, r=10, t=30, b=10),
                               template="plotly_white", height=600)
 
             fig_rsi = go.Figure()
             fig_rsi.add_trace(go.Scatter(x=df["t_open"], y=df["RSI"], name="RSI", line=dict(color="blue")))
             fig_rsi.add_hline(y=70, line_dash='dash', line_color="red", annotation_text="Overbought 70")
             fig_rsi.add_hline(y=30, line_dash='dash', line_color="green", annotation_text="Oversold 30")
-            fig_rsi.update_layout(margin=dict(l=10,r=10,t=10,b=10), height=200, template="plotly_white")
+            fig_rsi.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=200, template="plotly_white")
 
             placeholder_chart.plotly_chart(fig, use_container_width=True)
             placeholder_chart.plotly_chart(fig_rsi, use_container_width=True)
@@ -128,7 +135,7 @@ try:
             df_tr["price"] = df_tr["p"].astype(float)
             df_tr["qty"] = df_tr["q"].astype(float)
             df_tr["time"] = pd.to_datetime(df_tr["T"], unit='ms')
-            trades_table.dataframe(df_tr[["time","price","qty"]])
+            trades_table.dataframe(df_tr[["time", "price", "qty"]])
         else:
             trades_table.write("Sem trades ainda")
 
