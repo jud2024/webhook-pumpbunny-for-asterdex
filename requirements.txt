@@ -1,5 +1,0 @@
-streamlit
-websocket-client
-pandas
-plotly
-ta
